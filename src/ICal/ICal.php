@@ -2605,50 +2605,39 @@ class ICal
      */
     protected function fileOrUrl($filename)
     {
-        $options                   = array();
-        $options['http']           = array();
-        $options['http']['header'] = array();
+        
+        $curl = curl_init();
+        $useragent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36';
 
-        if (!empty($this->httpBasicAuth) || !empty($this->httpUserAgent) || !empty($this->httpAcceptLanguage)) {
-            if (!empty($this->httpBasicAuth)) {
-                $username  = $this->httpBasicAuth['username'];
-                $password  = $this->httpBasicAuth['password'];
-                $basicAuth = base64_encode("{$username}:{$password}");
+        curl_setopt_array($curl, array(
+            CURLOPT_URL             => $filename,// your preferred link
+            CURLOPT_RETURNTRANSFER  => true,
+            CURLOPT_ENCODING        => "",
+            CURLOPT_TIMEOUT         => 30000,
+            CURLOPT_RETURNTRANSFER  => TRUE,
+            CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST   => "GET",
+            CURLOPT_USERAGENT       => $useragent,
+            CURLOPT_FOLLOWLOCATION  => true,
+            CURLOPT_COOKIEJAR       => dirname(__FILE__) . '/cookie.txt',
+            CURLOPT_COOKIEFILE      => dirname(__FILE__) . '/cookie.txt',
+            //  CURLOPT_MAXREDIRS       => 99,
+            CURLOPT_HTTPHEADER      => array(
+                // Set Here Your Requesred Headers
+                'Content-Type: calendar/txt',
+            ),
+        ));
+        $lines = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
 
-                $options['http']['header'][] = "Authorization: Basic {$basicAuth}";
-            }
-
-            if (!empty($this->httpUserAgent)) {
-                $options['http']['header'][] = "User-Agent: {$this->httpUserAgent}";
-            }
-
-            if (!empty($this->httpAcceptLanguage)) {
-                $options['http']['header'][] = "Accept-language: {$this->httpAcceptLanguage}";
-            }
-        }
-
-        if (empty($this->httpUserAgent)) {
-            if (mb_stripos($filename, 'outlook.office365.com') !== false) {
-                $options['http']['header'][] = 'User-Agent: A User Agent';
-            }
-        }
-
-        if (!empty($this->httpProtocolVersion)) {
-            $options['http']['protocol_version'] = $this->httpProtocolVersion;
+        if ($err) {
+            throw new \Exception("cURL Error #:" . $err);
         } else {
-            $options['http']['protocol_version'] = '1.1';
+            return explode('\n\r', $lines);
         }
-
-        $options['http']['header'][] = 'Connection: close';
-
-        $context = stream_context_create($options);
-
-        // phpcs:ignore CustomPHPCS.ControlStructures.AssignmentInCondition
-        if (($lines = file($filename, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES, $context)) === false) {
-            throw new \Exception("The file path or URL '{$filename}' does not exist.");
-        }
-
-        return $lines;
+        
+    
     }
 
     /**
